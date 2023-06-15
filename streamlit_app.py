@@ -1,109 +1,148 @@
 import streamlit as st
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
-# import cv2
+from PIL import Image, ImageDraw, ImageFont
+import io
 import requests
-from io import BytesIO
-from urllib.request import urlopen
 
-# req = requests.get("https://github.com/googlefonts/roboto/blob/master/src/hinted/Roboto-Regular.ttf?raw=true")
+st.set_page_config(
+    page_title="Snowflake Summit Trading Card Generator App",
+    page_icon="🎴",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://discuss.streamlit.io/',
+        'Report a bug': "https://www.extremelycoolapp.com/bug",
+        'About': "# This is Trading Card Generator app made with Streamlit for Snowflake Summit!"
+    }
+)
 
-# roboto_font = ImageFont.truetype(BytesIO(req.content), 72)
+TEMPLATE_IMAGE_PATH = "assets/template.png"
 
-# im = cv2.imread('template.png')
-# height = im.shape[0]
-# width = im.shape[1]
 
-# Open pitcher and pitch images
-person = Image.open('person1.png')
-card = Image.open('template.png').convert('RGBA')
-rectangle = Image.open('rectangle.png')
+def fetch_github_profile_image(username):
+    """Rate limit with token is 5000 API calls/hour or ~80 calls/minute"""
+    headers = {'Authorization': f'token {st.secrets["github"]["token"]}'}
+    try:
+        response = requests.get(f"https://api.github.com/users/{username}", 
+                                headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            if "avatar_url" in data:
+                avatar_url = data["avatar_url"]
+                image_response = requests.get(avatar_url, headers=headers)
+                if image_response.status_code == 200:
+                    return image_response.content
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+    return None
 
-rectangle.paste(person,(120,120))
-# rectangle.show()
+def add_text_to_card(draw, text, position, font_path, 
+                     font_size=60, color=(255, 255, 255)):
+    myFont = ImageFont.truetype(font_path, font_size)
+    draw.text(position, text, font=myFont, fill=color)
 
-rectangle.alpha_composite(card,(0,0))
-# rectangle.show()
+def create_trading_card(person_image, person_position, output_path, text, 
+                        github_username):
+    card = Image.open(TEMPLATE_IMAGE_PATH).convert('RGBA')
 
-# Call draw Method to add 2D graphics in an image
-draw = ImageDraw.Draw(rectangle)
- 
-# Custom font style and font size
-# myFont = ImageFont.truetype('FreeMono.ttf', 65)
-# truetype_url = 'https://github.com/googlefonts/roboto/blob/master/src/hinted/Roboto-Regular.ttf?raw=true'
-# roboto_font = ImageFont.truetype(urlopen(truetype_url), size=10)
-# roboto_font = ImageFont.load_default()
-myFont = ImageFont.truetype(r'BebasNeue-Regular.ttf', 60)
-# font = ImageFont.truetype(r'C:\Users\System-Pc\Desktop\arial.ttf', 70)
+    # New image with the same size as the template
+    trading_card = Image.new('RGBA', card.size)
 
-# Add Text to an image
-draw.text((200, 80), "Caroline Frasca", font=myFont, fill =(255, 255, 255))
+    # Composite card onto the trading card
+    trading_card.alpha_composite(card)
 
-rectangle.show()
+    # Paste image onto the trading card
+    mask = Image.new("L", person_image.size, 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.ellipse((0, 0) + person_image.size, fill=255)
+    trading_card.paste(person_image, person_position, mask=mask)
 
-# Create a blank grey image
-# wip_img = Image.new("RGBA", (756, 1051), "#f2f2f2")
-# # Load the santa hat
-# circle = Image.open("mask.png")
-# # At first this is just a black rectangle of the same size as the hat
-# shadow = Image.new("RGBA", circle.size, color="black")
+    # Call draw Method to add 2D graphics in the trading card
+    draw = ImageDraw.Draw(trading_card)
 
-# # Coordinates at which to draw the hat and shadow
-# hat_coords = (25, 25)
-# # shadow_coords = (30, 30)
+    # Load font
+    font_path = "assets/RobotoMono-Bold.ttf"
+    font_size = 40
+    myFont = ImageFont.truetype(font_path, font_size)
 
-# # Custom-mask the shadow so it has the same shape as the santa hat
-# # wip_img.paste(shadow, shadow_coords, mask=circle)
-# # Now paste the hat on top of the shadow
-# wip_img.paste(circle, box=hat_coords, mask=circle)
-# wip_img.show()
-# wip_img.save("result.png")
-# card.paste(rectangle)
-# card.show()
+    text_position = (220, 75)
+    draw.text(text_position, text, font=myFont, fill=(255, 255, 255))
 
-# rectangle.paste(card)
-# rectangle.show()
+    # GitHub username
+    add_text_to_card(draw, f"@{github_username}", (370, 685), font_size=30, 
+                     font_path="assets/RobotoMono-VariableFont_wght.ttf")
+    # Choice words
+    add_text_to_card(draw, "multipage app maverick", (310, 750), font_size=25, 
+                     font_path="assets/RobotoMono-VariableFont_wght.ttf")
+    add_text_to_card(draw, "Pythonista", (100, 750), font_size=25, 
+                     font_path="assets/RobotoMono-VariableFont_wght.ttf")
+    # Number of apps built
+    add_text_to_card(draw, "473", (100, 600), font_size=70, 
+                     font_path="assets/BebasNeue-Regular.ttf")
+    add_text_to_card(draw, "apps built", (100, 685), font_size=30, 
+                     font_path="assets/RobotoMono-VariableFont_wght.ttf")
 
-# person.paste(card)
-# person.show()
-# new_image = card.paste(card, (0,0))
-# new_image.show()
-# fg.paste(bg, (0,0))
-# rectangle = Image.open('rectangle.png')
-# rectangle.show()
-# w, h = fg.width, fg.height
-# w = width
-# h = height
+    # Save the trading card to a byte buffer
+    output_buffer = io.BytesIO()
+    trading_card.save(output_buffer, format='PNG')
+    output_buffer.seek(0)
 
-# merge = st.button("Merge images")
-# pasted = rectangle.paste(person, (0,0))
-# pasted = card.paste(person,(0,0),mask=card)
-# pasted.show()
-  
-# if merge:
-#     # new_image = bg.resize((756, 1051))
-# # No transparency mask specified, 
-# # simulating an raster overlay
-#     # bg.paste(fg, (0,0), mask = fg,)
-#     # fg.paste(bg, (0,0))
-#     resized_person = rectangle.paste(person, (0,0))
-#     resized_person.show()
+    return output_buffer
 
-    # new_image.show()
 
-    # bg.show()
+def main():
+    st.title("Snowflake Summit Trading Card")
 
-# if merge:
-#     # Iterate over rows and columns
-#     for y in range(h):
-#         for x in range(w):
-#             # Get components of foreground pixel
-#             r, g, b, a = fg.getpixel((x,y))
-#             # If foreground is opaque, overwrite background with foreground
-#             # if a>128:
-#             #     bg.putpixel((x,y), (r,g,b))
+    # Fixed values for the position and size of the image
+    image_x = 142
+    image_y = 158
+    image_size = 472
 
-#     # Save result    
-#     bg.save('result.png')
-#     st.image('result.png')
+    # Initialize trading_card_buffer
+    trading_card_buffer = None  
+
+    with st.sidebar:
+        person_image_option = st.radio("Select image source:", 
+                                       ("Take selfie", 
+                                        "GitHub profile"))
+        text = st.text_input("Enter your name:", 'Tony Kipkemboi')
+        github_username = st.text_input("Enter GitHub username:", 'tonykipkemboi').lower()
+
+        with st.form(key='form'):
+            if person_image_option == "Take selfie":
+                img_file_buffer = st.camera_input("Take selfie")
+                if img_file_buffer is not None:
+                    # Convert the image to PIL format
+                    person_image = Image.open(img_file_buffer).convert('RGBA')
+                    person_image = person_image.resize((image_size, image_size))  
+                    trading_card_buffer = create_trading_card(person_image, 
+                                                              (image_x, image_y), 
+                                                              "output.png", text, github_username)
+
+            elif person_image_option == "GitHub profile":
+                if github_username and text:
+                    person_image_data = fetch_github_profile_image(github_username)
+                    if person_image_data:
+                        person_image = Image.open(io.BytesIO(person_image_data)).convert('RGBA')
+                        person_image = person_image.resize((image_size, 
+                                                            image_size))
+                        trading_card_buffer = create_trading_card(person_image, 
+                                                                  (image_x, image_y), 
+                                                                  "output.png", text, github_username)
+                    else:
+                        st.error("Failed to fetch GitHub profile image. Please check the GitHub username.")
+            submit_button = st.form_submit_button(label='Generate Trading Card')
+
+    if 'submit_button' in locals() and submit_button and 'trading_card_buffer' in locals():
+        st.image(trading_card_buffer, 
+                 use_column_width=True)
+        
+        st.download_button("Download Card", 
+                           trading_card_buffer, 
+                           file_name="trading_card.png", 
+                           mime="image/png",
+                           use_container_width=True
+                           )
+
+if __name__ == '__main__':
+    main()
+
