@@ -145,7 +145,7 @@ def main():
 
     # Take selfie option
     if person_image_option == "Take selfie":
-        with st.form(key='selfie_form', clear_on_submit=True):
+        with st.form(key='selfie_form'):
             img_file_buffer = st.camera_input("Take selfie 📸", 
                                               help="Click on the `Take Photo` below to snap a selfie!")
             if img_file_buffer is not None:
