@@ -3,6 +3,12 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import requests
 
+import smtplib
+from email.mime.multipart import MIMEMultipart 
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase 
+from email import encoders
+
 st.set_page_config(
     page_title="Snowflake Summit Trading Card Generator App",
     page_icon="🎴",
@@ -111,6 +117,31 @@ def create_trading_card(person_image, person_position, output_path, text,
 
     return output_buffer
 
+def send_email(to_address, subject, body, trading_card_buffer):
+    msg = MIMEMultipart()
+    msg['From'] = st.secrets["email"]["gmail"]
+    msg['To'] = to_address
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Attach the trading card
+    part = MIMEBase('application', 'octet-stream')
+    part.set_payload(trading_card_buffer.getvalue())
+    encoders.encode_base64(part)
+    part.add_header('Content-Disposition', 'attachment; filename="trading_card.png"')
+    msg.attach(part)
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(st.secrets["email"]["gmail"], st.secrets["email"]["pass"])
+        text = msg.as_string()
+        server.sendmail(st.secrets["email"]["gmail"], to_address, text)
+        server.quit()
+        st.success("Email sent successfully!")
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+
 def main():
     st.title("Snowflake Summit Trading Card")
 
@@ -123,9 +154,7 @@ def main():
     trading_card_buffer = None  
 
     with st.sidebar:
-        person_image_option = st.radio("Select image source:", 
-                                       ("Take selfie", 
-                                        "GitHub profile"))
+        person_image_option = st.radio("Select image source:", ("Take selfie", "GitHub profile"))
         text = st.text_input("Enter your name:", placeholder='Bertram Gilfoyle')
         github_username = st.text_input("Enter GitHub username:", placeholder='gilfoyle').lower()
 
@@ -134,67 +163,77 @@ def main():
         if github_username:
             person_image_data, python_repos_count = fetch_github_profile_image_and_python_repos(github_username)
 
+        email = st.text_input("Enter your email address (optional):", 
+                              placeholder="gilfoyle@sandpiper.com", 
+                              help="We will send you the generated image!")
+
         # Choice words
         choice_words_options = ["multipage app maverick", 
                                 "Pythonista", 
                                 "Data wizard", 
                                 "I love Streamlit"]
-        
         chosen_words = st.multiselect("Choose your favorite words:", 
-                            choice_words_options, key='chosen_words')
+                                      choice_words_options, key='chosen_words')
 
-    # Take selfie option
     if person_image_option == "Take selfie":
         with st.form(key='selfie_form'):
             img_file_buffer = st.camera_input("Take selfie 📸", 
                                               help="Click on the `Take Photo` below to snap a selfie!")
             if img_file_buffer is not None:
-                # Convert the image to PIL format
                 person_image = Image.open(img_file_buffer).convert('RGBA')
                 person_image = person_image.resize((image_size, image_size)) 
                 trading_card_buffer = create_trading_card(person_image, 
-                                                        (image_x, image_y), 
-                                                        "output.png", 
-                                                        text, 
-                                                        github_username, 
-                                                        python_repos_count,
-                                                        chosen_words)
-            selfie_submit_button = st.form_submit_button(label='Generate Trading Card', 
-                                                         use_container_width=True,
+                                                          (image_x, image_y),
+                                                           "output.png", text, 
+                                                           github_username, 
+                                                           python_repos_count, 
+                                                           chosen_words)
+            selfie_submit_button = st.form_submit_button(label='Generate and Email Card', 
+                                                         use_container_width=True, 
                                                          type="primary")
 
-    # GitHub profile option
     elif person_image_option == "GitHub profile":
         with st.sidebar.form(key='github_form'):
-            if github_username:  # Only fetch profile image if a GitHub username is entered
-                if text and person_image_data:
-                    person_image = Image.open(io.BytesIO(person_image_data)).convert('RGBA')
-                    person_image = person_image.resize((image_size, image_size))
-                    trading_card_buffer = create_trading_card(person_image, 
-                                                            (image_x, image_y), 
-                                                            "output.png", 
-                                                            text, 
-                                                            github_username, 
-                                                            python_repos_count,
-                                                            chosen_words)
-                else:
-                    st.error("Failed to fetch GitHub profile image. Please check the GitHub username.")
-            github_submit_button = st.form_submit_button(label='Generate Trading Card',
-                                                         use_container_width=True,
+            if github_username and text and person_image_data:
+                person_image = Image.open(io.BytesIO(person_image_data)).convert('RGBA')
+                person_image = person_image.resize((image_size, image_size))
+                trading_card_buffer = create_trading_card(person_image, 
+                                                          (image_x, image_y), 
+                                                          "output.png", text, 
+                                                          github_username, 
+                                                          python_repos_count, 
+                                                          chosen_words)
+            else:
+                st.error("Failed to fetch GitHub profile image. Please check the GitHub username.")
+            github_submit_button = st.form_submit_button(label='Generate and Email Card',
+                                                         use_container_width=True, 
                                                          type="primary")
 
-    if (('selfie_submit_button' in locals() and selfie_submit_button) or 
-        ('github_submit_button' in locals() and github_submit_button)) and 'trading_card_buffer' in locals():
-        st.image(trading_card_buffer, 
-                 use_column_width=True)
+    if (('selfie_submit_button' in locals() and selfie_submit_button) or ('github_submit_button' in locals() and github_submit_button)) and 'trading_card_buffer' in locals():
+        st.image(trading_card_buffer, use_column_width=True)
 
-        st.download_button("Download Card", 
-                           trading_card_buffer, 
-                           file_name="trading_card.png", 
-                           mime="image/png",
-                           use_container_width=True
-                        )
+        if email:
+            subject = "Your Custom Trading Card from Snowflake Summit is Ready! 🎈"
+            body = f"""
+Hello {text.split(' ')[0]},
+
+We're excited to share that your custom trading card, crafted at the Snowflake Summit, is ready! We've attached it to this email for you. 
+
+This unique card represents your participation and engagement at the Streamlit booth. We hope you love it as much as we enjoyed chatting with you.
+
+Feel free to share your card on social media platforms using our event hashtag, #SnowflakeSummit. We'd love to see how you're displaying your card!
+
+To learn more about Streamlit, visit https://streamlit.io and also check out our community forum at https://discuss.streamlit.io for inspiration and support.
+
+Thank you for being a part of Snowflake Summit. We look forward to your continued participation in our community!
+
+Happy Streamlit-ing! 🎈
+"""
+
+            send_email(email, subject, body, trading_card_buffer)
+
 
 if __name__ == '__main__':
     main()
+
 
