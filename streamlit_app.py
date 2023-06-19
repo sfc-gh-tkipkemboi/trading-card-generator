@@ -154,26 +154,40 @@ def main():
     trading_card_buffer = None  
 
     with st.sidebar:
-        person_image_option = st.radio("Select image source:", ("Take selfie", "GitHub profile"))
-        text = st.text_input("Enter your name:", placeholder='Bertram Gilfoyle')
-        github_username = st.text_input("Enter GitHub username:", placeholder='gilfoyle').lower()
+        st.title('Step 1: Start Here 🤗')
+        person_image_option = st.radio("Select your image source", ("Take selfie", "GitHub profile"))
+
+        st.title('Step 2: Enter Details ✍️')
+        text = st.text_input("Your first and last name", placeholder='Bertram Gilfoyle')
+        if text:
+            # Capitalize the name
+            text = text.title()
+            name_parts = text.split()
+            if len(name_parts) < 2:
+                st.error("Please enter both first and last names the click `Enter`")
+                return
+        github_username = st.text_input("GitHub username", placeholder='gilfoyle').lower()
 
         # Fetch GitHub details as soon as a username is entered
         person_image_data, python_repos_count = None, 0
         if github_username:
             person_image_data, python_repos_count = fetch_github_profile_image_and_python_repos(github_username)
 
-        email = st.text_input("Enter your email address (optional):", 
-                              placeholder="gilfoyle@sandpiper.com", 
-                              help="We will send you the generated image!")
-
         # Choice words
         choice_words_options = ["multipage app maverick", 
                                 "Pythonista", 
                                 "Data wizard", 
                                 "I love Streamlit"]
-        chosen_words = st.multiselect("Choose your favorite words:", 
+        chosen_words = st.multiselect("Favorite words", 
                                       choice_words_options, key='chosen_words')
+        
+        st.title("Step 3: Generate Card 🖼️")
+
+        # Email
+        email = st.text_input("Want the card? Enter your email (optional)", 
+                              placeholder="gilfoyle@sandpiper.com", 
+                              help="We will send you the generated image!")
+        
 
     if person_image_option == "Take selfie":
         with st.form(key='selfie_form'):
@@ -188,52 +202,71 @@ def main():
                                                            github_username, 
                                                            python_repos_count, 
                                                            chosen_words)
-            selfie_submit_button = st.form_submit_button(label='Generate and Email Card', 
+            selfie_submit_button = st.form_submit_button(label='Generate Card', 
                                                          use_container_width=True, 
                                                          type="primary")
+
+            # Check for required fields before allowing submission
+            if selfie_submit_button:
+                if not text or not chosen_words or not img_file_buffer:
+                    st.warning("Please ensure you have entered your name, chosen words, and taken a selfie.", 
+                               icon="⚠️")
 
     elif person_image_option == "GitHub profile":
         with st.sidebar.form(key='github_form'):
-            if github_username and text and person_image_data:
-                person_image = Image.open(io.BytesIO(person_image_data)).convert('RGBA')
-                person_image = person_image.resize((image_size, image_size))
-                trading_card_buffer = create_trading_card(person_image, 
-                                                          (image_x, image_y), 
-                                                          "output.png", text, 
-                                                          github_username, 
-                                                          python_repos_count, 
-                                                          chosen_words)
-            else:
-                st.error("Failed to fetch GitHub profile image. Please check the GitHub username.")
-            github_submit_button = st.form_submit_button(label='Generate and Email Card',
+            github_submit_button = st.form_submit_button(label='Generate Card', 
                                                          use_container_width=True, 
                                                          type="primary")
+            
+            # Check for required fields before allowing submission
+            if github_submit_button:
+                if github_username and text:
+                    if person_image_data:
+                        person_image = Image.open(io.BytesIO(person_image_data)).convert('RGBA')
+                        person_image = person_image.resize((image_size, image_size))
+                        trading_card_buffer = create_trading_card(person_image, 
+                                                                  (image_x, image_y), 
+                                                                  "output.png", 
+                                                                  text, 
+                                                                  github_username, 
+                                                                  python_repos_count, 
+                                                                  chosen_words)
+                    else:
+                        st.error("Failed to fetch GitHub profile image. Please check the GitHub username.", 
+                                 icon="⚠️")
+                else:
+                    st.error("Please ensure you have entered your name, chosen words, and a valid GitHub username.", 
+                             icon="⚠️")
 
-    if (('selfie_submit_button' in locals() and selfie_submit_button) or ('github_submit_button' in locals() and github_submit_button)) and 'trading_card_buffer' in locals():
+    # Display image and send email
+    if (('selfie_submit_button' in locals() and selfie_submit_button) or ('github_submit_button' in locals() and github_submit_button)) and 'trading_card_buffer' in locals() and trading_card_buffer is not None:
         st.image(trading_card_buffer, use_column_width=True)
 
-        if email:
-            subject = "Your Custom Trading Card from Snowflake Summit is Ready! 🎈"
-            body = f"""
-Hello {text.split(' ')[0]},
+        if st.button("Send to Email", type="primary", use_container_width=True):
+            if email:
+                subject = "Your Custom Trading Card from Snowflake Summit is Ready! 🎈"
+                body = f"""
+    Hello {text.split(' ')[0]},
 
-We're excited to share that your custom trading card, crafted at the Snowflake Summit, is ready! We've attached it to this email for you. 
+    We're excited to share that your custom trading card, crafted at the Snowflake Summit, is ready! We've attached it to this email for you. 
 
-This unique card represents your participation and engagement at the Streamlit booth. We hope you love it as much as we enjoyed chatting with you.
+    This unique card represents your participation and engagement at the Streamlit booth. We hope you love it as much as we enjoyed chatting with you.
 
-Feel free to share your card on social media platforms using our event hashtag, #SnowflakeSummit. We'd love to see how you're displaying your card!
+    Feel free to share your card on social media platforms using our event hashtag, #SnowflakeSummit. We'd love to see how you're displaying your card!
 
-To learn more about Streamlit, visit https://streamlit.io and also check out our community forum at https://discuss.streamlit.io for inspiration and support.
+    To learn more about Streamlit, visit https://streamlit.io and also check out our community forum at https://discuss.streamlit.io for inspiration and support.
 
-Thank you for being a part of Snowflake Summit. We look forward to your continued participation in our community!
+    Thank you for being a part of Snowflake Summit. We look forward to your continued participation in our community!
 
-Happy Streamlit-ing! 🎈
-"""
+    Happy Streamlit-ing! 🎈
+    """
 
-            send_email(email, subject, body, trading_card_buffer)
+                send_email(email, subject, body, trading_card_buffer)
+
 
 
 if __name__ == '__main__':
     main()
+
 
 
