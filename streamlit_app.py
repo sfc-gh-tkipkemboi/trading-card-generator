@@ -247,29 +247,30 @@ def main():
         st.session_state['trading_card_buffer'] = trading_card_buffer
         st.image(trading_card_buffer, use_column_width=True)
 
-    # Create a separate button for sending the email
-    if st.button("Send to Email", type="primary", use_container_width=True):
-        if email and st.session_state['trading_card_buffer'] is not None:
-            subject = "Your Custom Trading Card from Snowflake Summit is Ready! 🎈"
-            body = f"""
-    Hello {text.split(' ')[0]},
-    We're excited to share that your custom trading card, crafted at the Snowflake Summit, is ready! We've attached it to this email for you. 
+    # Conditionally display the "Send Email" button if the trading_card_buffer is not None
+    if st.session_state['trading_card_buffer'] is not None:
+        if st.button("Send to Email", type="primary", use_container_width=True):
+            if email:
+                subject = "Your Custom Trading Card from Snowflake Summit is Ready! 🎈"
+                body = f"""
+Hello {text.split(' ')[0]},
 
-    This unique card represents your participation and engagement at the Streamlit booth. We hope you love it as much as we enjoyed chatting with you.
+We're excited to share that your custom trading card, crafted at the Snowflake Summit, is ready! We've attached it to this email for you. 
 
-    Feel free to share your card on social media platforms using our event hashtag, #SnowflakeSummit. We'd love to see how you're displaying your card!
+This unique card represents your participation and engagement at the Streamlit booth. We hope you love it as much as we enjoyed chatting with you.
 
-    To learn more about Streamlit, visit https://streamlit.io and also check out our community forum at https://discuss.streamlit.io for inspiration and support.
+Feel free to share your card on social media platforms using our event hashtag, #SnowflakeSummit. We'd love to see how you're displaying your card!
 
-    Thank you for being a part of Snowflake Summit. We look forward to your continued participation in our community!
+To learn more about Streamlit, visit https://streamlit.io and also check out our community forum at https://discuss.streamlit.io for inspiration and support.
 
-    Happy Streamlit-ing! 🎈
-    """
+Thank you for being a part of Snowflake Summit. We look forward to your continued participation in our community!
 
-            send_email(email, subject, body, st.session_state['trading_card_buffer'])
-    else:
-        st.warning("Please enter an email address in the sidebar and ensure the card has been generated.")
+Happy Streamlit-ing! 🎈
+"""
 
+                send_email(email, subject, body, st.session_state['trading_card_buffer'])
+            else:
+                st.warning("Please enter an email address in the sidebar.")
 
 if __name__ == '__main__':
     main()
