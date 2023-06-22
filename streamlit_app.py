@@ -139,6 +139,7 @@ def send_email(to_address, subject, body, trading_card_buffer):
         server.sendmail(st.secrets["email"]["gmail"], to_address, text)
         server.quit()
         st.success("Email sent successfully!")
+        st.balloons()
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
 
