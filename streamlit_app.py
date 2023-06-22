@@ -12,7 +12,7 @@ from email import encoders
 st.set_page_config(
     page_title="Snowflake Summit Trading Card Generator App",
     page_icon="🎴",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="expanded",
     menu_items={
         'Get Help': 'https://discuss.streamlit.io/',
