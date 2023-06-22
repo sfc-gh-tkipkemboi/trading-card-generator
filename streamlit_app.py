@@ -151,7 +151,11 @@ def main():
     image_size = 472
 
     # Initialize trading_card_buffer
-    trading_card_buffer = None  
+    trading_card_buffer = None
+
+    # Initialize trading_card_buffer in the session state if not already present
+    if 'trading_card_buffer' not in st.session_state:
+        st.session_state['trading_card_buffer'] = None  
 
     with st.sidebar:
         st.title('Step 1: Start Here 🤗')
@@ -240,14 +244,15 @@ def main():
 
     # Display image and send email
     if (('selfie_submit_button' in locals() and selfie_submit_button) or ('github_submit_button' in locals() and github_submit_button)) and 'trading_card_buffer' in locals() and trading_card_buffer is not None:
+        st.session_state['trading_card_buffer'] = trading_card_buffer
         st.image(trading_card_buffer, use_column_width=True)
 
-        if st.button("Send to Email", type="primary", use_container_width=True):
-            if email:
-                subject = "Your Custom Trading Card from Snowflake Summit is Ready! 🎈"
-                body = f"""
+    # Create a separate button for sending the email
+    if st.button("Send to Email", type="primary", use_container_width=True):
+        if email and st.session_state['trading_card_buffer'] is not None:
+            subject = "Your Custom Trading Card from Snowflake Summit is Ready! 🎈"
+            body = f"""
     Hello {text.split(' ')[0]},
-
     We're excited to share that your custom trading card, crafted at the Snowflake Summit, is ready! We've attached it to this email for you. 
 
     This unique card represents your participation and engagement at the Streamlit booth. We hope you love it as much as we enjoyed chatting with you.
@@ -261,8 +266,9 @@ def main():
     Happy Streamlit-ing! 🎈
     """
 
-                send_email(email, subject, body, trading_card_buffer)
-
+            send_email(email, subject, body, st.session_state['trading_card_buffer'])
+    else:
+        st.warning("Please enter an email address in the sidebar and ensure the card has been generated.")
 
 
 if __name__ == '__main__':
