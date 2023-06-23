@@ -144,7 +144,7 @@ def send_email(to_address, subject, body, trading_card_buffer):
         st.error(f"An error occurred: {str(e)}")
 
 def main():
-    st.title("Snowflake Summit Trading Card")
+    st.markdown("## 🤩 Generate your Summit Card! 🤩")
 
     # Fixed values for the position and size of the image
     image_x = 142
@@ -159,10 +159,11 @@ def main():
         st.session_state['trading_card_buffer'] = None  
 
     with st.sidebar:
-        st.title('Step 1: Start Here 🤗')
+        st.image('assets/streamlit-logo-primary-colormark-darktext.png', use_column_width=True, clamp=True)
+        st.header('Step 1: Start Here 🤗')
         person_image_option = st.radio("Select your image source", ("Take selfie", "GitHub profile"))
 
-        st.title('Step 2: Enter Details ✍️')
+        st.header('Step 2: Enter Details ✍️')
         text = st.text_input("Your first and last name", placeholder='Bertram Gilfoyle')
         if text:
             # Capitalize the name
@@ -186,7 +187,7 @@ def main():
         chosen_words = st.multiselect("Favorite words", 
                                       choice_words_options, key='chosen_words')
         
-        st.title("Step 3: Generate Card 🖼️")
+        st.header("Step 3: Generate Card 🖼️")
 
         # Email
         email = st.text_input("Want the card? Enter your email (optional)", 
